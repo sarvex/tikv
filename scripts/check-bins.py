@@ -29,7 +29,7 @@ def pr(s):
         print(s.strip())
 
 def check_jemalloc(executable):
-    p = os.popen("readelf -s " + executable)
+    p = os.popen(f"readelf -s {executable}")
     found = set()
     for line in p.readlines():
         line = line.strip()
@@ -48,10 +48,10 @@ def is_jemalloc_enabled(features):
     return not features or "jemalloc" in features
 
 def check_sse(executable):
-    p = os.popen("nm -n " + executable)
+    p = os.popen(f"nm -n {executable}")
     lines = p.readlines()
     segments = [(pos, pos + 1) for (pos, l) in enumerate(lines) if "Fast_CRC32" in l]
-    if len(segments) == 0:
+    if not segments:
         pr("error: %s does not contain sse4.2\n" % executable)
         print("fix this by building tikv with ROCKSDB_SYS_SSE=1")
         sys.exit(1)
@@ -62,7 +62,9 @@ def check_sse(executable):
     for start, end in segments:
         s_addr = lines[start].split()[0]
         e_addr = lines[end].split()[0]
-        p = os.popen("objdump -d %s --start-address 0x%s --stop-address 0x%s" % (executable, s_addr, e_addr))
+        p = os.popen(
+            f"objdump -d {executable} --start-address 0x{s_addr} --stop-address 0x{e_addr}"
+        )
         for l in p.readlines():
             if opcode_pattern.search(l):
                 matched = True
@@ -90,10 +92,10 @@ def check_tests(features):
         executable = data["executable"]
         name = executable.rsplit("/", 1)[1]
         if name.split('-')[0] in WHITE_LIST:
-            pr("Skipping whitelisted %s" % name)
+            pr(f"Skipping whitelisted {name}")
             continue
 
-        pr("Checking binary %s" % name)
+        pr(f"Checking binary {name}")
         check_jemalloc(executable)
     pr("")
     print("Done, takes %.2fs." % (time.time() - start))
@@ -103,8 +105,8 @@ def ensure_link(args):
     if "Linux" not in p.readline():
         return
     for bin in args:
-        p = os.popen("ldd " + bin)
-        requires = set(l.split()[0] for l in p.readlines())
+        p = os.popen(f"ldd {bin}")
+        requires = {l.split()[0] for l in p.readlines()}
         for lib in SYS_LIB:
             if any(lib in r for r in requires):
                 pr("error: %s should not requires dynamic library %s\n" % (bin, lib))
@@ -120,9 +122,11 @@ def check_release(enabled_features, args):
     if not checked_features:
         print("Both jemalloc and SSE4.2 are disabled, skip check")
         return
-    print("Enabled features: %s, will check bins for %s" % (enabled_features, ", ".join(checked_features)))
+    print(
+        f'Enabled features: {enabled_features}, will check bins for {", ".join(checked_features)}'
+    )
     for arg in args:
-        pr("checking binary %s" % arg)
+        pr(f"checking binary {arg}")
         if is_jemalloc_enabled(enabled_features):
             check_jemalloc(arg)
         if is_sse_enabled(enabled_features):

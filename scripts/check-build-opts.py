@@ -95,13 +95,9 @@ def run_and_collect_errors(args):
 
 def get_features(path):
     path = f"{path}/Cargo.toml"
-    f = open(path)
-    s = f.read()
-    f.close()
-
-    has_test_engine_features = "test-engines-rocksdb" in s
-
-    return has_test_engine_features
+    with open(path) as f:
+        s = f.read()
+    return "test-engines-rocksdb" in s
 
 print()
 
